@@ -1,5 +1,5 @@
 # 效果展示
-<img src='./assets/1.png'>
+<img src='./assets/1.png' style='width:100%;height:auto'>
 <img src='./assets/2.png'>
 <img src='./assets/3.png'>
 <img src='./assets/4.png'>
@@ -17,7 +17,6 @@ llama-server -hf ggml-org/InternVL3-2B-Instruct-GGUF
 ```
 npm i  
 npm run dev
-
 ```
 
 
