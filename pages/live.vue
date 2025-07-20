@@ -280,7 +280,7 @@ option && myChart.setOption(option);
 }
 const openai = new OpenAI({
         baseURL: 'https://api.deepseek.com',
-        apiKey: 'sk-',
+        apiKey: 'sk-5d0fd45ab4224962a56453d10eb5e8ec',
         dangerouslyAllowBrowser: true 
 });
 async function streamResponse(question, updateCallback) {
@@ -327,6 +327,107 @@ useHead({
 });
 let ccc = ref(0);
 
+const APPID = '635c7a5f'; //https://console.xfyun.cn/services/image 这个网站获取APPID APISecret APIKey
+const APISecret = 'MzI3NmE5NzI5MGM1YjEzZmI2MWI1YTIy';
+const APIKey = '148a24cd29cd85aaedf556d5079098cb';
+const WSS_BASE_URL = 'wss://spark-api.cn-huabei-1.xf-yun.com/v2.1/image'; //固定，不需要修改
+const host = 'spark-api.cn-huabei-1.xf-yun.com' //固定，不需要修改
+const prompt_text = '"这张图片是什么内容，并且分析它的表情和神态内容信息"'
+
+let keda_send_data = async(APPID,APIKey,APISecret,img_base64,bf)=>{
+    function cleanBase64(base64Str) {
+  return base64Str.replace(/^data:image\/\w+;base64,/, '');
+    }
+    function get_date() {
+  return new Date().toUTCString();
+    }
+    function safeBtoa(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+    }
+    function buildWebSocketUrl(baseUrl, params) {
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    searchParams.append(key, value);
+  }
+  return `${baseUrl}?${searchParams.toString()}`;
+    }
+    async function generateSignature() {
+  const signingStr = [
+    `host: spark-api.cn-huabei-1.xf-yun.com`,
+    `date: ${get_date()}`,
+    `GET /v2.1/image HTTP/1.1`
+  ].join('\n');
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(APISecret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(signingStr));
+  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+    }
+    const signature = await generateSignature();
+    const authorization_origin = [
+      `api_key="${APIKey}"`,
+      `algorithm="hmac-sha256"`,
+      `headers="host date request-line"`,
+      `signature="${signature}"`
+    ].join(', ');
+    const extra_v = {
+          authorization: safeBtoa(authorization_origin),
+          date: get_date(),
+          host, 
+    };
+    const wsUrl = buildWebSocketUrl(WSS_BASE_URL, extra_v);
+    const socket = new WebSocket(wsUrl);
+    socket.onopen = () => {
+      socket.send(JSON.stringify({
+      "header": {
+        "app_id": APPID,
+        "uid": "39769795890"//随便填
+      },
+      "parameter": {
+        "chat": {
+            "domain": "imagev3",
+            "temperature": 0.5,
+            "top_k": 4,
+            "max_tokens": 2028
+        }
+      },
+      "payload": {
+        "message": {
+            "text": [
+                {
+                    "role": "user",
+                    "content":cleanBase64(img_base64) ,
+                    "content_type": "image"
+                },
+                {
+                    "role": "user",
+                    "content": prompt_text,
+                    "content_type": "text"
+                }
+            ]
+        }
+      }
+}));
+
+    };
+    socket.onerror = (e) => console.error('Error:', e);
+    socket.onmessage = (event) => {
+    const response = JSON.parse(event.data);
+    if (response.header.code === 0) {
+        bf(response.payload.choices.text[0].content)
+    } else {
+        alert('敏感图片，请求失败')
+      console.error("请求失败:", response.header.message);
+      return -1
+    }
+ }
+}
 
 
 onMounted(async() => {
@@ -340,7 +441,7 @@ onMounted(async() => {
    let stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
    video0.srcObject = stream;
    video1.srcObject = stream;
-   let time_gap = 100
+   let time_gap = 10000
    let introduction = ',仅翻译成中文,不需要解析它:';
    let introduction1 = 'Observe this picture, describe its content, and analyze the facial expressions';
    let sound_introduction = '在面试,这是它说的话，仅猜测它现在可能语音情绪情况,建议带着语气两字 不用分点,50个字就行，带emoji:';
@@ -383,56 +484,46 @@ onMounted(async() => {
             return canvas.toDataURL('image/jpeg', 1); // Use JPEG for smaller size, 0.8 quality
         }
 
-        async function sendData() {
-            if (ccc.value)  return
-            ccc.value = 1;
-            // if (!isProcessing) return; // Ensure we don't have overlapping requests if processing takes longer than interval
+async function sendData() {
+    // 每次执行前清空历史数据
+    face_compute.value = "";
+    sound_compute.value = "";
+    suggest_compute.value = "";
 
-            const imageBase64URL = captureImage();
-             if (!imageBase64URL) return;
-            console.log('imageBase64URL', imageBase64URL);
-            
+    const imageBase64URL = captureImage();
+    if (!imageBase64URL) return;
 
-
-            const payload = {
-                instruction: introduction1,
-                imageBase64URL: imageBase64URL
-            };
-                let response_en = await sendChatCompletionRequest(payload.instruction, payload.imageBase64URL);
-                 if(!/500/.test(response_en+'')){
-                    await streamResponse(`${response_en}${introduction}`, (text) => {
-                        face_compute.value = text;
-                    });
-                     if(/酒|锅头/.test(face_compute.value))
-                      alert('检测到面试者喝酒 😅，请注意！');
-
-                     await streamResponse(`${response_en}${sound_introduction}`, (text) => {
-                        sound_compute.value = text;
-                    });
-                   
-                     await streamResponse(`${response_en}${suggest_introduction}`, (text) => {
-                        suggest_compute.value = text;
-                    });
-
-                   
-                    // sound_compute.value = await main(`${response }${sound_introduction}`)   // Update the sound_compute with the response
-                    // face_compute.value  = await main(`${response }${introduction}`)   // Update the face_compute with the response
-                    // suggest_compute.value  = await main(`${ response}${suggest_introduction}`)   // Update the face_compute with the response
-                    ccc.value = 0;
-                }
-        }
-            setInterval(() => {
-                 if(!ccc.value) sendData()
-             }, time_gap);
-
-        window.addEventListener('beforeunload', () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-            if (intervalId) {
-                clearInterval(intervalId);
-            }
+    // 发送数据并获取最新结果（不叠加）
+    await new Promise((resolve) => {
+        keda_send_data(APPID, APIKey, APISecret, imageBase64URL, (text) => {
+            face_compute.value += text; // 直接赋值，而非 +=
+            resolve();
         });
+    });
+
+    if (/酒|锅头/.test(face_compute.value)) {
+        alert('检测到面试者喝酒 😅，请注意！');
+    }
+
+    await streamResponse(`${face_compute.value}${sound_introduction}`, (text) => {
+        sound_compute.value = text;
+    });
+
+    await streamResponse(`${face_compute.value}${suggest_introduction}`, (text) => {
+        suggest_compute.value = text;
+    });
+}
+
+setInterval(sendData, time_gap);
+
+        // window.addEventListener('beforeunload', () => {
+        //     if (stream) {
+        //         stream.getTracks().forEach(track => track.stop());
+        //     }
+        //     if (intervalId) {
+        //         clearInterval(intervalId);
+        //     }
+        // });
 
 
   
