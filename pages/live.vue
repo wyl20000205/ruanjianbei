@@ -280,7 +280,7 @@ option && myChart.setOption(option);
 }
 const openai = new OpenAI({
         baseURL: 'https://api.deepseek.com',
-        apiKey: 'sk-5d0fd45ab4224962a56453d10eb5e8ec',
+        apiKey: '',
         dangerouslyAllowBrowser: true 
 });
 async function streamResponse(question, updateCallback) {
@@ -327,9 +327,9 @@ useHead({
 });
 let ccc = ref(0);
 
-const APPID = '635c7a5f'; //https://console.xfyun.cn/services/image 这个网站获取APPID APISecret APIKey
-const APISecret = 'MzI3NmE5NzI5MGM1YjEzZmI2MWI1YTIy';
-const APIKey = '148a24cd29cd85aaedf556d5079098cb';
+const APPID = ''; //https://console.xfyun.cn/services/image 这个网站获取APPID APISecret APIKey
+const APISecret = '';
+const APIKey = '';
 const WSS_BASE_URL = 'wss://spark-api.cn-huabei-1.xf-yun.com/v2.1/image'; //固定，不需要修改
 const host = 'spark-api.cn-huabei-1.xf-yun.com' //固定，不需要修改
 const prompt_text = '"这张图片是什么内容，并且分析它的表情和神态内容信息"'
