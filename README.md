@@ -5,9 +5,10 @@
 <img src='./assets/4.png'>
 
 # 如何使用
-## 第一步 填写Deepseek Api-key
+## 第一步 填写科大讯飞 Api-key
 ```
 在 /public/live.vue 文件中填写 apiKey
+感谢科大讯飞星火大模型(Spark pro)提供问答服务
 ```
 ## 第二步 启动Llama
 ```
